@@ -6187,7 +6187,7 @@ namespace ts {
     }
 
     /* @internal */
-    export type CreateProgramOptionsWithProgramFromBuildInfo = Omit<CreateProgramOptions, "oldProgram"> & { oldProgram: ProgramFromBuildInfo; };
+    export type CreateProgramOptionsWithProgramFromBuildInfo = Omit<CreateProgramOptions, "oldProgram"> & { oldProgram: ProgramFromBuildInfo | Program | undefined; };
 
     /* @internal */
     export interface CommandLineOptionBase {

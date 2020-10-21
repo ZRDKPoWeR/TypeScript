@@ -248,6 +248,7 @@ interface Symbol {
             exportedModulesMap?: MapLike<string[]>;
             semanticDiagnosticsPerFile?: ProgramBuildInfoDiagnostic[];
             affectedFilesPendingEmit?: ProgramBuilderInfoFilePendingEmit[];
+            peristedProgram?: PersistedProgram;
         }
         const fileInfos: ProgramBuildInfo["fileInfos"] = {};
         buildInfo.program?.fileInfos.forEach((fileInfo, index) => fileInfos[toFileName(index + 1)] = fileInfo);
@@ -270,6 +271,7 @@ interface Symbol {
                     emitKind === BuilderFileEmit.Full ? "Full" :
                         Debug.assertNever(emitKind)
             ]),
+            peristedProgram: buildInfo.program.peristedProgram,
         };
         const version = buildInfo.version === ts.version ? fakes.version : buildInfo.version;
         const result: Omit<BuildInfo, "program"> & { program: ProgramBuildInfo | undefined; size: number; } = {

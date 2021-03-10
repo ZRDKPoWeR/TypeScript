@@ -239,6 +239,39 @@ interface Symbol {
     function generateBuildInfoProgramBaseline(sys: System, originalWriteFile: System["writeFile"], buildInfoPath: string, buildInfo: BuildInfo) {
         type ProgramBuildInfoDiagnostic = string | [string, readonly ReusableDiagnostic[]];
         type ProgramBuilderInfoFilePendingEmit = [string, "DtsOnly" | "Full"];
+        interface PersistedProgramSourceFile {
+            fileName: string;
+            originalFileName: string;
+            path: string;
+            resolvedPath: string;
+            flags: NodeFlags;
+            version: string;
+            typeReferenceDirectives?: readonly string[];
+            libReferenceDirectives?: readonly string[];
+            referencedFiles?: readonly string[];
+            imports?: readonly StringLiteralLikeOfProgramFromBuildInfo[];
+            moduleAugmentations?: readonly ModuleNameOfProgramFromBuildInfo[];
+            ambientModuleNames?: readonly string[];
+            hasNoDefaultLib?: true;
+            resolvedModules?: MapLike<number>;
+            resolvedTypeReferenceDirectiveNames?: MapLike<number>;
+            redirectInfo?: { readonly redirectTarget: { readonly path: string }; };
+            includeReasons: readonly PersistedProgramFileIncludeReason[];
+            isSourceFileFromExternalLibraryPath?: true;
+            redirectTargets?: readonly string[];
+            packageName?: string;
+        }
+        interface PersistedProgramReferencedFile {
+            kind: ReferencedFileKind;
+            file: string;
+            index: number;
+        }
+        type PersistedProgramFileIncludeReason =
+            RootFile |
+            LibFile |
+            ProjectReferenceFile |
+            PersistedProgramReferencedFile |
+            AutomaticTypeDirectiveFile;
         interface PersistedProgram {
             files: readonly PersistedProgramSourceFile[] | undefined;
             rootFileNames: readonly string[] | undefined;
@@ -287,7 +320,7 @@ interface Symbol {
                         Debug.assertNever(emitKind)
             ]),
             peristedProgram: buildInfo.program.peristedProgram && {
-                files: buildInfo.program.peristedProgram.files,
+                files: buildInfo.program.peristedProgram.files?.map(toPersistedProgramSourceFile),
                 rootFileNames: buildInfo.program.peristedProgram.rootFileNames,
                 filesByName,
                 projectReferences: buildInfo.program.peristedProgram.projectReferences,
@@ -323,6 +356,35 @@ interface Symbol {
                 result[toFileName(fileNamesKey)] = toFileNames(fileNamesListKey);
             }
             return result;
+        }
+
+        function toPersistedProgramSourceFile(file: ts.PersistedProgramSourceFile): PersistedProgramSourceFile {
+            return {
+                fileName: file.fileName,
+                originalFileName: file.originalFileName,
+                path: toFileName(file.path),
+                resolvedPath: toFileName(file.resolvedPath),
+                version: file.version,
+                flags: file.flags,
+                typeReferenceDirectives: file.typeReferenceDirectives,
+                libReferenceDirectives: file.libReferenceDirectives,
+                referencedFiles: file.referencedFiles,
+                imports: file.imports,
+                moduleAugmentations: file.moduleAugmentations,
+                ambientModuleNames: file.ambientModuleNames,
+                hasNoDefaultLib: file.hasNoDefaultLib,
+                redirectInfo: file.redirectInfo && { redirectTarget: { path: toFileName(file.redirectInfo.redirectTarget.path) } },
+                resolvedModules: file.resolvedModules,
+                resolvedTypeReferenceDirectiveNames: file.resolvedTypeReferenceDirectiveNames,
+                redirectTargets: file.redirectTargets,
+                includeReasons: file.includeReasons.map(toFileIncludeReason),
+                isSourceFileFromExternalLibraryPath: file.isSourceFileFromExternalLibraryPath,
+                packageName: file.packageName,
+            };
+        }
+
+        function toFileIncludeReason(reason: ts.PersistedProgramFileIncludeReason): PersistedProgramFileIncludeReason {
+            return isReferencedFile(reason) ? { ...reason, file: toFileName(reason.file) } : reason;
         }
     }
 

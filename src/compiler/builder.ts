@@ -846,11 +846,26 @@ namespace ts {
         ProjectReferenceFile |
         PersistedProgramReferencedFile |
         AutomaticTypeDirectiveFile;
+    export interface PersistedProgramFilePreprocessingReferencedDiagnostic {
+        kind: FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic;
+        reason: PersistedProgramReferencedFile;
+        diagnostic: keyof typeof Diagnostics;
+        args?: (string | number | undefined)[];
+    }
+    export interface PersistedProgramFilePreprocessingFileExplainingDiagnostic {
+        kind: FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic;
+        file?: ProgramBuildInfoFileId;
+        fileProcessingReason: PersistedProgramFileIncludeReason;
+        diagnostic: keyof typeof Diagnostics;
+        args?: (string | number | undefined)[];
+    }
+    export type PersistedProgramFilePreprocessingDiagnostic = PersistedProgramFilePreprocessingReferencedDiagnostic | PersistedProgramFilePreprocessingFileExplainingDiagnostic;
+
     export interface PersistedProgramResolvedProjectReference {
         commandLine: Pick<ParsedCommandLine, "projectReferences">;
-        sourceFile: { version: string; path: string; };
+        sourceFile: { version: string; path: ProgramBuildInfoFileId; };
         references: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
-    };
+    }
     export interface PersistedProgram {
         files: readonly PersistedProgramSourceFile[] | undefined;
         rootFileNames: readonly string[] | undefined;
@@ -859,7 +874,7 @@ namespace ts {
         resolvedProjectReferences: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
         missingPaths: readonly ProgramBuildInfoFileId[] | undefined;
         resolvedTypeReferenceDirectives: MapLike<number> | undefined;
-        fileProcessingDiagnostics: readonly ReusableFilePreprocessingDiagnostic[] | undefined;
+        fileProcessingDiagnostics: readonly PersistedProgramFilePreprocessingDiagnostic[] | undefined;
         resolutions: readonly PersistedProgramResolution[] | undefined;
     }
     export interface ProgramBuildInfo {
@@ -960,7 +975,7 @@ namespace ts {
                 resolvedProjectReferences: program.getResolvedProjectReferences()?.map(mapResolvedProjectReference),
                 missingPaths: mapToReadonlyArrayOrUndefined(program.getMissingFilePaths(), toFileId),
                 resolvedTypeReferenceDirectives: mapResolutionWithFailedLookupMap(program.getResolvedTypeReferenceDirectives()),
-                fileProcessingDiagnostics: mapToReadonlyArrayOrUndefined(program.getFileProcessingDiagnostics(), mapFileProcessingDiagnostic),
+                fileProcessingDiagnostics: mapToReadonlyArrayOrUndefined(program.getFileProcessingDiagnostics(), toPersistedProgramFilePreprocessingDiagnostic),
                 resolutions: mapToReadonlyArrayOrUndefined(resolutions, mapResolution),
             };
         }
@@ -1031,27 +1046,38 @@ namespace ts {
             };
         }
 
-        function toPersistedProgramFileIncludeReason(reason: FileIncludeReason): PersistedProgramFileIncludeReason {
-            return isReferencedFile(reason) ?
-                { ...reason, file: toFileId(reason.file) } :
-                reason;
+        function toPersistedProgramReferencedFile(reason: ReferencedFile): PersistedProgramReferencedFile {
+            return { ...reason, file: toFileId(reason.file) };
         }
 
-        function mapFileProcessingDiagnostic(d: FilePreprocessingDiagnostic): ReusableFilePreprocessingDiagnostic {
-            const result: ReusableFilePreprocessingDiagnostic = {
-                ...d,
-                diagnostic: d.diagnostic.key as keyof typeof Diagnostics,
-            };
-            if ((d as FilePreprocessingFileExplainingDiagnostic).file) {
-                (result as ReusableFilePreprocessingFileExplainingDiagnostic).file = relativeToBuildInfo((d as FilePreprocessingFileExplainingDiagnostic).file!);
-            }
-            return result;
+        function toPersistedProgramFileIncludeReason(reason: FileIncludeReason): PersistedProgramFileIncludeReason {
+            return isReferencedFile(reason) ? toPersistedProgramReferencedFile(reason) : reason;
+        }
+
+        function toPersistedProgramFilePreprocessingDiagnostic(d: FilePreprocessingDiagnostic): PersistedProgramFilePreprocessingDiagnostic {
+            switch (d.kind) {
+                case FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic:
+                    return {
+                        ...d,
+                        diagnostic: d.diagnostic.key as keyof typeof Diagnostics,
+                        file: d.file && toFileId(d.file),
+                        fileProcessingReason: toPersistedProgramFileIncludeReason(d.fileProcessingReason),
+                    };
+                case FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic:
+                    return {
+                        ...d,
+                        diagnostic: d.diagnostic.key as keyof typeof Diagnostics,
+                        reason: toPersistedProgramReferencedFile(d.reason),
+                    };
+                default:
+                    Debug.assertNever(d);
+             }
         }
 
         function mapResolvedProjectReference(ref: ResolvedProjectReference | undefined): PersistedProgramResolvedProjectReference | undefined {
             return ref && {
                 commandLine: { projectReferences: mapToReadonlyArrayOrUndefined(ref.commandLine.projectReferences, mapProjectReference) },
-                sourceFile: { version: ref.sourceFile.version, path: relativeToBuildInfo(ref.sourceFile.path) },
+                sourceFile: { version: ref.sourceFile.version, path: toFileId(ref.sourceFile.path) },
                 references: mapToReadonlyArrayOrUndefined(ref.references, mapResolvedProjectReference)
             };
         }
@@ -1586,10 +1612,10 @@ namespace ts {
                 redirectTargetsMap,
                 sourceFileToPackageName,
                 projectReferences: program.peristedProgram.projectReferences?.map(mapProjectReference),
-                resolvedProjectReferences: program.peristedProgram.resolvedProjectReferences?.map(mapResolvedProjectReference),
+                resolvedProjectReferences: program.peristedProgram.resolvedProjectReferences?.map(toResolvedProjectReference),
                 missingPaths: mapToReadonlyArray(program.peristedProgram.missingPaths, toFilePath),
                 resolvedTypeReferenceDirectives: getResolutionMap(program.peristedProgram.resolvedTypeReferenceDirectives) || new Map(),
-                fileProcessingDiagnostics: map(program.peristedProgram.fileProcessingDiagnostics, mapFileProcessingDiagnostic),
+                fileProcessingDiagnostics: map(program.peristedProgram.fileProcessingDiagnostics, toFileProcessingDiagnostic),
             };
             return programFromBuildInfo = createProgramFromBuildInfo(state.persistedProgramInfo, state.compilerOptions);
 
@@ -1658,8 +1684,12 @@ namespace ts {
             return referenceMap && arrayToMap(referenceMap, value => toFilePath(value[0]), value => toFilePathsSet(value[1]));
         }
 
+        function toReferencedFile(reason: PersistedProgramReferencedFile): ReferencedFile {
+            return { ...reason, file: toFilePath(reason.file) };
+        }
+
         function toFileIncludeReason(reason: PersistedProgramFileIncludeReason): FileIncludeReason {
-            return isReferencedFile(reason) ? { ...reason, file: toFilePath(reason.file) } : reason;
+            return isReferencedFile(reason) ? toReferencedFile(reason) : reason;
         }
 
         function mapResolution({ resolvedModule, resolvedTypeReferenceDirective, failedLookupLocations }: PersistedProgramResolution): ResolvedModuleWithFailedLookupLocations & ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
@@ -1690,22 +1720,32 @@ namespace ts {
             };
         }
 
-        function mapResolvedProjectReference(ref: PersistedProgramResolvedProjectReference | undefined): ResolvedProjectReferenceOfProgramFromBuildInfo | undefined {
+        function toResolvedProjectReference(ref: PersistedProgramResolvedProjectReference | undefined): ResolvedProjectReferenceOfProgramFromBuildInfo | undefined {
             return ref && {
                 commandLine: { projectReferences: ref.commandLine.projectReferences?.map(mapProjectReference) },
-                sourceFile: { version: ref.sourceFile.version, path: toPath(ref.sourceFile.path) },
-                references: ref.references?.map(mapResolvedProjectReference)
+                sourceFile: { version: ref.sourceFile.version, path: toFilePath(ref.sourceFile.path) },
+                references: ref.references?.map(toResolvedProjectReference)
             };
         }
 
-        function mapFileProcessingDiagnostic(d: ReusableFilePreprocessingDiagnostic) {
-            return {
-                ...d,
-                diagnostic: Diagnostics[d.diagnostic],
-                file: (d as ReusableFilePreprocessingFileExplainingDiagnostic).file ?
-                    toPath((d as ReusableFilePreprocessingFileExplainingDiagnostic).file!) :
-                    undefined,
-            };
+        function toFileProcessingDiagnostic(d: PersistedProgramFilePreprocessingDiagnostic): FilePreprocessingDiagnostic {
+            switch (d.kind) {
+                case FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic:
+                    return {
+                        ...d,
+                        diagnostic: Diagnostics[d.diagnostic],
+                        file: d.file ? toFilePath(d.file) : undefined,
+                        fileProcessingReason: toFileIncludeReason(d.fileProcessingReason),
+                    };
+                case FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic:
+                    return {
+                        ...d,
+                        diagnostic: Diagnostics[d.diagnostic],
+                        reason: toReferencedFile(d.reason),
+                    };
+                default:
+                    Debug.assertNever(d);
+            }
         }
     }
 

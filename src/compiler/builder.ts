@@ -855,10 +855,10 @@ namespace ts {
     export interface PersistedProgram {
         files: readonly PersistedProgramSourceFile[] | undefined;
         rootFileNames: readonly string[] | undefined;
-        filesByName: MapLike<string | typeof missingSourceOfProjectReferenceRedirect | typeof missingFile> | undefined;
+        filesByName: readonly [fileId: ProgramBuildInfoFileId, file: ProgramBuildInfoFileId | typeof missingSourceOfProjectReferenceRedirect | typeof missingFile][] | undefined;
         projectReferences: readonly ProjectReference[] | undefined;
         resolvedProjectReferences: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
-        missingPaths: readonly string[] | undefined;
+        missingPaths: readonly ProgramBuildInfoFileId[] | undefined;
         resolvedTypeReferenceDirectives: MapLike<number> | undefined;
         fileProcessingDiagnostics: readonly ReusableFilePreprocessingDiagnostic[] | undefined;
         resolutions: readonly PersistedProgramResolution[] | undefined;
@@ -948,10 +948,10 @@ namespace ts {
             // persist program
             programFilesByName = new Map(program.getFilesByNameMap());
             const files = mapToReadonlyArrayOrUndefined(program.getSourceFiles(), mapSourceFile);
-            let filesByName: MapLike<string | false | 0> | undefined;
+            let filesByName: [fileId: ProgramBuildInfoFileId, file: ProgramBuildInfoFileId | typeof missingSourceOfProjectReferenceRedirect | typeof missingFile][] | undefined;
             for (const key of arrayFrom(programFilesByName.keys()).sort(compareStringsCaseSensitive)) {
                 const value = program.getFilesByNameMap().get(key)!;
-                (filesByName ||= {})[relativeToBuildInfo(key)] = value ? relativeToBuildInfo(value.path) : value;
+                (filesByName ||= []).push([toFileId(key), value ? toFileId(value.path) : value]);
             }
             peristedProgram = {
                 files,
@@ -959,7 +959,7 @@ namespace ts {
                 filesByName,
                 projectReferences: program.getProjectReferences()?.map(mapProjectReference),
                 resolvedProjectReferences: program.getResolvedProjectReferences()?.map(mapResolvedProjectReference),
-                missingPaths: mapToReadonlyArrayOrUndefined(program.getMissingFilePaths(), relativeToBuildInfo),
+                missingPaths: mapToReadonlyArrayOrUndefined(program.getMissingFilePaths(), toFileId),
                 resolvedTypeReferenceDirectives: mapResolutionWithFailedLookupMap(program.getResolvedTypeReferenceDirectives()),
                 fileProcessingDiagnostics: mapToReadonlyArrayOrUndefined(program.getFileProcessingDiagnostics(), mapFileProcessingDiagnostic),
                 resolutions: mapToReadonlyArrayOrUndefined(resolutions, mapResolution),
@@ -1576,14 +1576,7 @@ namespace ts {
             let sourceFileFromExternalLibraryPath: Set<Path> | undefined;
             const redirectTargetsMap = createMultiMap<Path, string>();
             const sourceFileToPackageName = new Map<Path, string>();
-            if (program.peristedProgram.filesByName) {
-                for (const key in program.peristedProgram.filesByName) {
-                    if (hasProperty(program.peristedProgram.filesByName, key)) {
-                        const value = program.peristedProgram.filesByName[key];
-                        filesByName.set(toPath(key), isString(value) ? toPath(value) : value);
-                    }
-                }
-            }
+            program.peristedProgram.filesByName?.forEach(([fileId, file]) => filesByName.set(toFilePath(fileId), file ? toFilePath(file) : file as typeof missingSourceOfProjectReferenceRedirect | typeof missingFile));
             const resolutions = mapToReadonlyArray(program.peristedProgram.resolutions, mapResolution);
             const files = mapToReadonlyArray(program.peristedProgram.files, mapSourceFile);
             state.persistedProgramInfo = {
@@ -1596,7 +1589,7 @@ namespace ts {
                 sourceFileToPackageName,
                 projectReferences: program.peristedProgram.projectReferences?.map(mapProjectReference),
                 resolvedProjectReferences: program.peristedProgram.resolvedProjectReferences?.map(mapResolvedProjectReference),
-                missingPaths: mapToReadonlyArray(program.peristedProgram.missingPaths, toPath),
+                missingPaths: mapToReadonlyArray(program.peristedProgram.missingPaths, toFilePath),
                 resolvedTypeReferenceDirectives: getResolutionMap(program.peristedProgram.resolvedTypeReferenceDirectives) || new Map(),
                 fileProcessingDiagnostics: map(program.peristedProgram.fileProcessingDiagnostics, mapFileProcessingDiagnostic),
             };
@@ -1645,6 +1638,26 @@ namespace ts {
                 }
                 return result;
             }
+        }
+
+        function toPath(path: string) {
+            return ts.toPath(path, buildInfoDirectory, getCanonicalFileName);
+        }
+
+        function toAbsolutePath(path: string) {
+            return getNormalizedAbsolutePath(path, buildInfoDirectory);
+        }
+
+        function toFilePath(fileId: ProgramBuildInfoFileId) {
+            return filePaths[fileId - 1];
+        }
+
+        function toFilePathsSet(fileIdsListId: ProgramBuildInfoFileIdListId) {
+            return filePathsSetList![fileIdsListId - 1];
+        }
+
+        function toMapOfReferencedSet(referenceMap: ProgramBuildInfoReferencedMap | undefined): ReadonlyESMap<Path, BuilderState.ReferencedSet> | undefined {
+            return referenceMap && arrayToMap(referenceMap, value => toFilePath(value[0]), value => toFilePathsSet(value[1]));
         }
 
         function mapFileIncludeReason(reason: PersistedProgramFileIncludeReason): FileIncludeReason {
@@ -1697,26 +1710,6 @@ namespace ts {
                     toPath((d as ReusableFilePreprocessingFileExplainingDiagnostic).file!) :
                     undefined,
             };
-        }
-
-        function toPath(path: string) {
-            return ts.toPath(path, buildInfoDirectory, getCanonicalFileName);
-        }
-
-        function toAbsolutePath(path: string) {
-            return getNormalizedAbsolutePath(path, buildInfoDirectory);
-        }
-
-        function toFilePath(fileId: ProgramBuildInfoFileId) {
-            return filePaths[fileId - 1];
-        }
-
-        function toFilePathsSet(fileIdsListId: ProgramBuildInfoFileIdListId) {
-            return filePathsSetList![fileIdsListId - 1];
-        }
-
-        function toMapOfReferencedSet(referenceMap: ProgramBuildInfoReferencedMap | undefined): ReadonlyESMap<Path, BuilderState.ReferencedSet> | undefined {
-            return referenceMap && arrayToMap(referenceMap, value => toFilePath(value[0]), value => toFilePathsSet(value[1]));
         }
     }
 

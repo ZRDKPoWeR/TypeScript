@@ -239,6 +239,17 @@ interface Symbol {
     function generateBuildInfoProgramBaseline(sys: System, originalWriteFile: System["writeFile"], buildInfoPath: string, buildInfo: BuildInfo) {
         type ProgramBuildInfoDiagnostic = string | [string, readonly ReusableDiagnostic[]];
         type ProgramBuilderInfoFilePendingEmit = [string, "DtsOnly" | "Full"];
+        interface PersistedProgram {
+            files: readonly PersistedProgramSourceFile[] | undefined;
+            rootFileNames: readonly string[] | undefined;
+            filesByName: MapLike<string | typeof missingSourceOfProjectReferenceRedirect | typeof missingFile> | undefined;
+            projectReferences: readonly ProjectReference[] | undefined;
+            resolvedProjectReferences: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
+            missingPaths: readonly string[] | undefined;
+            resolvedTypeReferenceDirectives: MapLike<number> | undefined;
+            fileProcessingDiagnostics: readonly ReusableFilePreprocessingDiagnostic[] | undefined;
+            resolutions: readonly PersistedProgramResolution[] | undefined;
+        }
         interface ProgramBuildInfo {
             fileNames: readonly string[];
             fileNamesList: readonly (readonly string[])[] | undefined;
@@ -253,6 +264,10 @@ interface Symbol {
         const fileInfos: ProgramBuildInfo["fileInfos"] = {};
         buildInfo.program?.fileInfos.forEach((fileInfo, index) => fileInfos[toFileName(index + 1 as ProgramBuildInfoFileId)] = fileInfo);
         const fileNamesList = buildInfo.program?.fileIdsList?.map(fileIdsListId => fileIdsListId.map(toFileName));
+        const filesByName: PersistedProgram["filesByName"] = buildInfo.program?.peristedProgram?.filesByName ? {} : undefined;
+        buildInfo.program?.peristedProgram?.filesByName?.forEach(([fileId, file]) => {
+            filesByName![toFileName(fileId)] = file ? toFileName(file) : file as typeof missingSourceOfProjectReferenceRedirect | typeof missingFile;
+        });
         const program: ProgramBuildInfo | undefined = buildInfo.program && {
             fileNames: buildInfo.program.fileNames,
             fileNamesList,
@@ -271,7 +286,17 @@ interface Symbol {
                     emitKind === BuilderFileEmit.Full ? "Full" :
                         Debug.assertNever(emitKind)
             ]),
-            peristedProgram: buildInfo.program.peristedProgram,
+            peristedProgram: buildInfo.program.peristedProgram && {
+                files: buildInfo.program.peristedProgram.files,
+                rootFileNames: buildInfo.program.peristedProgram.rootFileNames,
+                filesByName,
+                projectReferences: buildInfo.program.peristedProgram.projectReferences,
+                resolvedProjectReferences: buildInfo.program.peristedProgram.resolvedProjectReferences,
+                missingPaths: buildInfo.program.peristedProgram.missingPaths?.map(toFileName),
+                resolvedTypeReferenceDirectives: buildInfo.program.peristedProgram.resolvedTypeReferenceDirectives,
+                fileProcessingDiagnostics: buildInfo.program.peristedProgram.fileProcessingDiagnostics,
+                resolutions: buildInfo.program.peristedProgram.resolutions
+            },
         };
         const version = buildInfo.version === ts.version ? fakes.version : buildInfo.version;
         const result: Omit<BuildInfo, "program"> & { program: ProgramBuildInfo | undefined; size: number; } = {

@@ -287,7 +287,7 @@ interface Symbol {
         }
         type PersistedProgramFilePreprocessingDiagnostic = PersistedProgramFilePreprocessingReferencedDiagnostic | PersistedProgramFilePreprocessingFileExplainingDiagnostic;
         interface PersistedProgramResolvedProjectReference {
-            commandLine: Pick<ParsedCommandLine, "projectReferences">;
+            commandLine: Pick<ParsedCommandLine, "projectReferences"> | undefined;
             sourceFile: { version: string; path: string; };
             references: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
         }
@@ -342,7 +342,7 @@ interface Symbol {
                 files: buildInfo.program.peristedProgram.files?.map(toPersistedProgramSourceFile),
                 rootFileNames: buildInfo.program.peristedProgram.rootFileNames,
                 filesByName,
-                projectReferences: buildInfo.program.peristedProgram.projectReferences,
+                projectReferences: buildInfo.program.peristedProgram.projectReferences?.map(toProjectReference),
                 resolvedProjectReferences: buildInfo.program.peristedProgram.resolvedProjectReferences?.map(toResolvedProjectReference),
                 missingPaths: buildInfo.program.peristedProgram.missingPaths?.map(toFileName),
                 resolvedTypeReferenceDirectives: buildInfo.program.peristedProgram.resolvedTypeReferenceDirectives,
@@ -430,9 +430,18 @@ interface Symbol {
 
         function toResolvedProjectReference(ref: ts.PersistedProgramResolvedProjectReference | undefined): PersistedProgramResolvedProjectReference | undefined {
             return ref && {
-                commandLine: ref.commandLine,
+                commandLine: ref.commandLine?.projectReferences && { projectReferences: ref.commandLine.projectReferences.map(toProjectReference) },
                 sourceFile: { ...ref.sourceFile, path: toFileName(ref.sourceFile.path) },
                 references: ref.references?.map(toResolvedProjectReference)
+            };
+        }
+
+        function toProjectReference(ref: PersistedProgramProjectReference): ProjectReference {
+            return {
+                path: toFileName(ref.path),
+                originalPath: ref.originalPath,
+                prepend: ref.prepend,
+                circular: ref.circular,
             };
         }
     }

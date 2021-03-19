@@ -340,7 +340,7 @@ interface Symbol {
             ]),
             peristedProgram: buildInfo.program.peristedProgram && {
                 files: buildInfo.program.peristedProgram.files?.map(toPersistedProgramSourceFile),
-                rootFileNames: buildInfo.program.peristedProgram.rootFileNames,
+                rootFileNames: buildInfo.program.peristedProgram.rootFileNames?.map(toFileName),
                 filesByName,
                 projectReferences: buildInfo.program.peristedProgram.projectReferences?.map(toProjectReference),
                 resolvedProjectReferences: buildInfo.program.peristedProgram.resolvedProjectReferences?.map(toResolvedProjectReference),
@@ -395,7 +395,7 @@ interface Symbol {
                 redirectInfo: file.redirectInfo && { redirectTarget: { path: toFileName(file.redirectInfo.redirectTarget.path) } },
                 resolvedModules: file.resolvedModules,
                 resolvedTypeReferenceDirectiveNames: file.resolvedTypeReferenceDirectiveNames,
-                redirectTargets: file.redirectTargets,
+                redirectTargets: file.redirectTargets?.map(toFileName),
                 includeReasons: file.includeReasons.map(toPersistedProgramFileIncludeReason),
                 isSourceFileFromExternalLibraryPath: file.isSourceFileFromExternalLibraryPath,
                 packageName: file.packageName,

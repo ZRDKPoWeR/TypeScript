@@ -261,17 +261,37 @@ interface Symbol {
             redirectTargets?: readonly string[];
             packageName?: string;
         }
+        enum FileIncludeKind {
+            RootFile = "RootFile",
+            SourceFromProjectReference = "SourceFromProjectReference",
+            OutputFromProjectReference = "OutputFromProjectReference",
+            Import = "Import",
+            ReferenceFile = "ReferenceFile",
+            TypeReferenceDirective = "TypeReferenceDirective",
+            LibFile = "LibFile",
+            LibReferenceDirective = "LibReferenceDirective",
+            AutomaticTypeDirectiveFile = "AutomaticTypeDirectiveFile",
+        }
+        type ReferencedFileKind = FileIncludeKind.Import |
+            FileIncludeKind.ReferenceFile |
+            FileIncludeKind.TypeReferenceDirective |
+            FileIncludeKind.LibReferenceDirective;
         interface PersistedProgramReferencedFile {
             kind: ReferencedFileKind;
             file: string;
             index: number;
         }
-        type PersistedProgramFileIncludeReason =
+        type PersistedProgramFileIncludeReason = Omit<(
             RootFile |
             LibFile |
             ProjectReferenceFile |
             PersistedProgramReferencedFile |
-            AutomaticTypeDirectiveFile;
+            AutomaticTypeDirectiveFile
+        ), "kind"> & { kind: FileIncludeKind };
+        const enum FilePreprocessingDiagnosticsKind {
+            FilePreprocessingReferencedDiagnostic = "FilePreprocessingReferencedDiagnostic",
+            FilePreprocessingFileExplainingDiagnostic = "FilePreprocessingFileExplainingDiagnostic"
+        }
         interface PersistedProgramFilePreprocessingReferencedDiagnostic {
             kind: FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic;
             reason: PersistedProgramReferencedFile;
@@ -402,25 +422,43 @@ interface Symbol {
             };
         }
 
+        function toFileIncludeKind(kind: ts.FileIncludeKind): FileIncludeKind {
+            switch (kind) {
+                case ts.FileIncludeKind.RootFile: return FileIncludeKind.RootFile;
+                case ts.FileIncludeKind.SourceFromProjectReference: return FileIncludeKind.SourceFromProjectReference;
+                case ts.FileIncludeKind.OutputFromProjectReference: return FileIncludeKind.OutputFromProjectReference;
+                case ts.FileIncludeKind.Import :return FileIncludeKind.Import;
+                case ts.FileIncludeKind.ReferenceFile: return FileIncludeKind.ReferenceFile;
+                case ts.FileIncludeKind.TypeReferenceDirective: return FileIncludeKind.TypeReferenceDirective;
+                case ts.FileIncludeKind.LibFile: return FileIncludeKind.LibFile;
+                case ts.FileIncludeKind.LibReferenceDirective: return FileIncludeKind.LibReferenceDirective;
+                case ts.FileIncludeKind.AutomaticTypeDirectiveFile: return FileIncludeKind.AutomaticTypeDirectiveFile;
+                default:
+                    Debug.assertNever(kind);
+            }
+        }
+
         function toPersistedProgramReferencedFile(reason: ts.PersistedProgramReferencedFile): PersistedProgramReferencedFile {
-            return { ...reason, file: toFileName(reason.file) };
+            return { ...reason, kind: toFileIncludeKind(reason.kind) as ReferencedFileKind, file: toFileName(reason.file) };
         }
 
         function toPersistedProgramFileIncludeReason(reason: ts.PersistedProgramFileIncludeReason): PersistedProgramFileIncludeReason {
-            return isReferencedFile(reason) ? toPersistedProgramReferencedFile(reason) : reason;
+            return isReferencedFile(reason) ? toPersistedProgramReferencedFile(reason) : { ...reason, kind: toFileIncludeKind(reason.kind) };
         }
 
         function toPersistedProgramFilePreprocessingDiagnostic(d: ts.PersistedProgramFilePreprocessingDiagnostic): PersistedProgramFilePreprocessingDiagnostic {
             switch (d.kind) {
-                case FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic:
+                case ts.FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic:
                     return {
                         ...d,
+                        kind: FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic,
                         file: d.file ? toFileName(d.file) : undefined,
                         fileProcessingReason: toPersistedProgramFileIncludeReason(d.fileProcessingReason),
                     };
-                case FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic:
+                case ts.FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic:
                     return {
                         ...d,
+                        kind: FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic,
                         reason: toPersistedProgramReferencedFile(d.reason),
                     };
                 default:

@@ -360,7 +360,7 @@ interface Symbol {
         // For now its just JSON.stringify
         originalWriteFile.call(sys, `${buildInfoPath}.readable.baseline.txt`, JSON.stringify(result, /*replacer*/ undefined, 2));
 
-        function toFileName(fileId: ProgramBuildInfoFileId) {
+        function toFileName(fileId: ProgramBuildInfoFileId | ProgramBuildInfoAbsoluteFileId) {
             return buildInfo.program!.fileNames[fileId - 1];
         }
 
@@ -379,8 +379,8 @@ interface Symbol {
 
         function toPersistedProgramSourceFile(file: ts.PersistedProgramSourceFile): PersistedProgramSourceFile {
             return {
-                fileName: file.fileName,
-                originalFileName: file.originalFileName,
+                fileName: toFileName(file.fileName),
+                originalFileName: toFileName(file.originalFileName),
                 path: toFileName(file.path),
                 resolvedPath: toFileName(file.resolvedPath),
                 version: file.version,

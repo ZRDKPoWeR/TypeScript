@@ -239,6 +239,23 @@ interface Symbol {
     function generateBuildInfoProgramBaseline(sys: System, originalWriteFile: System["writeFile"], buildInfoPath: string, buildInfo: BuildInfo) {
         type ProgramBuildInfoDiagnostic = string | [string, readonly ReusableDiagnostic[]];
         type ProgramBuilderInfoFilePendingEmit = [string, "DtsOnly" | "Full"];
+        type PersistedProgramResolvedModuleFull = Omit<ts.PersistedProgramResolvedModuleFull, "resolvedFileName" | "originalPath"> & {
+            resolvedFileName: string;
+            readonly originalPath?: string;
+        };
+        interface PersistedProgramResolvedModuleWithFailedLookupLocations {
+            readonly resolvedModule: PersistedProgramResolvedModuleFull | undefined;
+            failedLookupLocations?: readonly string[];
+        }
+        type PersistedProgramResolvedTypeReferenceDirective = Omit<ResolvedTypeReferenceDirective, "resolvedFileName"> & {
+            resolvedFileName: string | undefined;
+        };
+        interface PersistedProgramResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+            resolvedTypeReferenceDirective: PersistedProgramResolvedTypeReferenceDirective | undefined;
+            failedLookupLocations?: readonly string[];
+        }
+        type PersistedProgramResolution = PersistedProgramResolvedModuleWithFailedLookupLocations & PersistedProgramResolvedTypeReferenceDirectiveWithFailedLookupLocations;
+        type PersistedProgramResolutionEntry = [name: string, resolution: PersistedProgramResolution];
         interface PersistedProgramSourceFile {
             fileName: string;
             originalFileName: string;
@@ -253,8 +270,8 @@ interface Symbol {
             moduleAugmentations?: readonly ModuleNameOfProgramFromBuildInfo[];
             ambientModuleNames?: readonly string[];
             hasNoDefaultLib?: true;
-            resolvedModules?: MapLike<number>;
-            resolvedTypeReferenceDirectiveNames?: MapLike<number>;
+            resolvedModules?: readonly PersistedProgramResolutionEntry[];
+            resolvedTypeReferenceDirectiveNames?: readonly PersistedProgramResolutionEntry[];
             redirectInfo?: { readonly redirectTarget: { readonly path: string }; };
             includeReasons: readonly PersistedProgramFileIncludeReason[];
             isSourceFileFromExternalLibraryPath?: true;
@@ -318,7 +335,7 @@ interface Symbol {
             projectReferences: readonly ProjectReference[] | undefined;
             resolvedProjectReferences: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
             missingPaths: readonly string[] | undefined;
-            resolvedTypeReferenceDirectives: MapLike<number> | undefined;
+            resolvedTypeReferenceDirectives: readonly PersistedProgramResolutionEntry[] | undefined;
             fileProcessingDiagnostics: readonly PersistedProgramFilePreprocessingDiagnostic[] | undefined;
             resolutions: readonly PersistedProgramResolution[] | undefined;
         }
@@ -340,6 +357,7 @@ interface Symbol {
         buildInfo.program?.peristedProgram?.filesByName?.forEach(([fileId, file]) => {
             filesByName![toFileName(fileId)] = file ? toFileName(file) : file as typeof missingSourceOfProjectReferenceRedirect | typeof missingFile;
         });
+        const resolutions = buildInfo.program?.peristedProgram?.resolutions?.map(toPersistedProgramResolution);
         const program: ProgramBuildInfo | undefined = buildInfo.program && {
             fileNames: buildInfo.program.fileNames,
             fileNamesList,
@@ -365,9 +383,9 @@ interface Symbol {
                 projectReferences: buildInfo.program.peristedProgram.projectReferences?.map(toProjectReference),
                 resolvedProjectReferences: buildInfo.program.peristedProgram.resolvedProjectReferences?.map(toResolvedProjectReference),
                 missingPaths: buildInfo.program.peristedProgram.missingPaths?.map(toFileName),
-                resolvedTypeReferenceDirectives: buildInfo.program.peristedProgram.resolvedTypeReferenceDirectives,
+                resolvedTypeReferenceDirectives: buildInfo.program.peristedProgram.resolvedTypeReferenceDirectives?.map(toPersistedProgramResolutionEntry),
                 fileProcessingDiagnostics: buildInfo.program.peristedProgram.fileProcessingDiagnostics?.map(toPersistedProgramFilePreprocessingDiagnostic),
-                resolutions: buildInfo.program.peristedProgram.resolutions
+                resolutions
             },
         };
         const version = buildInfo.version === ts.version ? fakes.version : buildInfo.version;
@@ -413,8 +431,8 @@ interface Symbol {
                 ambientModuleNames: file.ambientModuleNames,
                 hasNoDefaultLib: file.hasNoDefaultLib,
                 redirectInfo: file.redirectInfo && { redirectTarget: { path: toFileName(file.redirectInfo.redirectTarget.path) } },
-                resolvedModules: file.resolvedModules,
-                resolvedTypeReferenceDirectiveNames: file.resolvedTypeReferenceDirectiveNames,
+                resolvedModules: file.resolvedModules?.map(toPersistedProgramResolutionEntry),
+                resolvedTypeReferenceDirectiveNames: file.resolvedTypeReferenceDirectiveNames?.map(toPersistedProgramResolutionEntry),
                 redirectTargets: file.redirectTargets?.map(toFileName),
                 includeReasons: file.includeReasons.map(toPersistedProgramFileIncludeReason),
                 isSourceFileFromExternalLibraryPath: file.isSourceFileFromExternalLibraryPath,
@@ -427,7 +445,7 @@ interface Symbol {
                 case ts.FileIncludeKind.RootFile: return FileIncludeKind.RootFile;
                 case ts.FileIncludeKind.SourceFromProjectReference: return FileIncludeKind.SourceFromProjectReference;
                 case ts.FileIncludeKind.OutputFromProjectReference: return FileIncludeKind.OutputFromProjectReference;
-                case ts.FileIncludeKind.Import :return FileIncludeKind.Import;
+                case ts.FileIncludeKind.Import: return FileIncludeKind.Import;
                 case ts.FileIncludeKind.ReferenceFile: return FileIncludeKind.ReferenceFile;
                 case ts.FileIncludeKind.TypeReferenceDirective: return FileIncludeKind.TypeReferenceDirective;
                 case ts.FileIncludeKind.LibFile: return FileIncludeKind.LibFile;
@@ -481,6 +499,26 @@ interface Symbol {
                 prepend: ref.prepend,
                 circular: ref.circular,
             };
+        }
+
+        function toPersistedProgramResolution(resolution: ts.PersistedProgramResolution): PersistedProgramResolution {
+            return {
+                resolvedModule: resolution.resolvedModule && {
+                    ...resolution.resolvedModule,
+                    resolvedFileName: toFileName(resolution.resolvedModule.resolvedFileName),
+                    originalPath: resolution.resolvedModule.originalPath ? toFileName(resolution.resolvedModule.originalPath) : undefined,
+                  
+                },
+                resolvedTypeReferenceDirective: resolution.resolvedTypeReferenceDirective && {
+                    ...resolution.resolvedTypeReferenceDirective,
+                    resolvedFileName: resolution.resolvedTypeReferenceDirective.resolvedFileName ? toFileName(resolution.resolvedTypeReferenceDirective.resolvedFileName) : undefined,
+                },
+                failedLookupLocations: resolution.failedLookupLocations?.map(toFileName)
+            };
+        }
+
+        function toPersistedProgramResolutionEntry([name, resolutionId]: ts.PersistedProgramResolutionEntry): PersistedProgramResolutionEntry {
+            return [name, resolutions![resolutionId - 1]];
         }
     }
 

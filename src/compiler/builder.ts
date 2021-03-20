@@ -1125,12 +1125,7 @@ namespace ts {
         }
 
         function toPersistedProgramProjectReference(ref: ProjectReference): PersistedProgramProjectReference {
-            return {
-                path: toAbsoluteFileId(ref.path),
-                originalPath: ref.originalPath,
-                prepend: ref.prepend,
-                circular: ref.circular
-            };
+            return { ...ref, path: toAbsoluteFileId(ref.path), };
         }
 
         function isResolvedModule(r: ResolvedModuleWithFailedLookupLocations | ResolvedTypeReferenceDirectiveWithFailedLookupLocations): r is ResolvedModuleWithFailedLookupLocations {
@@ -1735,29 +1730,20 @@ namespace ts {
         function toResolution({ resolvedModule, resolvedTypeReferenceDirective, failedLookupLocations }: PersistedProgramResolution): ResolvedModuleWithFailedLookupLocations & ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
             return {
                 resolvedModule: resolvedModule && {
+                    ...resolvedModule,
                     resolvedFileName: toFileAbsolutePath(resolvedModule.resolvedFileName),
-                    isExternalLibraryImport: resolvedModule.isExternalLibraryImport ? true : undefined,
                     originalPath: resolvedModule.originalPath && toFileAbsolutePath(resolvedModule.originalPath),
-                    extension: resolvedModule.extension,
-                    packageId: resolvedModule.packageId,
                 },
                 resolvedTypeReferenceDirective: resolvedTypeReferenceDirective && {
+                    ...resolvedTypeReferenceDirective,
                     resolvedFileName: resolvedTypeReferenceDirective.resolvedFileName && toFileAbsolutePath(resolvedTypeReferenceDirective.resolvedFileName),
-                    primary: resolvedTypeReferenceDirective.primary,
-                    isExternalLibraryImport: resolvedTypeReferenceDirective.isExternalLibraryImport ? true : undefined,
-                    packageId: resolvedTypeReferenceDirective.packageId
                 },
                 failedLookupLocations: failedLookupLocations ? failedLookupLocations.map(toFileAbsolutePath) : []
             };
         }
 
         function toProjectReference(ref: PersistedProgramProjectReference): ProjectReference {
-            return {
-                path: toFileAbsolutePath(ref.path),
-                originalPath: ref.originalPath,
-                prepend: ref.prepend,
-                circular: ref.circular
-            };
+            return { ...ref, path: toFileAbsolutePath(ref.path) };
         }
 
         function toResolvedProjectReference(ref: PersistedProgramResolvedProjectReference | undefined): ResolvedProjectReferenceOfProgramFromBuildInfo | undefined {

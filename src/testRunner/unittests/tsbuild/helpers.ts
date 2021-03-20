@@ -417,26 +417,16 @@ interface Symbol {
 
         function toPersistedProgramSourceFile(file: ts.PersistedProgramSourceFile): PersistedProgramSourceFile {
             return {
+                ...file,
                 fileName: toFileName(file.fileName),
                 originalFileName: toFileName(file.originalFileName),
                 path: toFileName(file.path),
                 resolvedPath: toFileName(file.resolvedPath),
-                version: file.version,
-                flags: file.flags,
-                typeReferenceDirectives: file.typeReferenceDirectives,
-                libReferenceDirectives: file.libReferenceDirectives,
-                referencedFiles: file.referencedFiles,
-                imports: file.imports,
-                moduleAugmentations: file.moduleAugmentations,
-                ambientModuleNames: file.ambientModuleNames,
-                hasNoDefaultLib: file.hasNoDefaultLib,
                 redirectInfo: file.redirectInfo && { redirectTarget: { path: toFileName(file.redirectInfo.redirectTarget.path) } },
                 resolvedModules: file.resolvedModules?.map(toPersistedProgramResolutionEntry),
                 resolvedTypeReferenceDirectiveNames: file.resolvedTypeReferenceDirectiveNames?.map(toPersistedProgramResolutionEntry),
                 redirectTargets: file.redirectTargets?.map(toFileName),
                 includeReasons: file.includeReasons.map(toPersistedProgramFileIncludeReason),
-                isSourceFileFromExternalLibraryPath: file.isSourceFileFromExternalLibraryPath,
-                packageName: file.packageName,
             };
         }
 
@@ -493,12 +483,7 @@ interface Symbol {
         }
 
         function toProjectReference(ref: PersistedProgramProjectReference): ProjectReference {
-            return {
-                path: toFileName(ref.path),
-                originalPath: ref.originalPath,
-                prepend: ref.prepend,
-                circular: ref.circular,
-            };
+            return { ...ref, path: toFileName(ref.path) };
         }
 
         function toPersistedProgramResolution(resolution: ts.PersistedProgramResolution): PersistedProgramResolution {
@@ -507,7 +492,6 @@ interface Symbol {
                     ...resolution.resolvedModule,
                     resolvedFileName: toFileName(resolution.resolvedModule.resolvedFileName),
                     originalPath: resolution.resolvedModule.originalPath ? toFileName(resolution.resolvedModule.originalPath) : undefined,
-                  
                 },
                 resolvedTypeReferenceDirective: resolution.resolvedTypeReferenceDirective && {
                     ...resolution.resolvedTypeReferenceDirective,

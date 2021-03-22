@@ -237,48 +237,37 @@ interface Symbol {
     }
 
     function generateBuildInfoProgramBaseline(sys: System, originalWriteFile: System["writeFile"], buildInfoPath: string, buildInfo: BuildInfo) {
-        type ProgramBuildInfoDiagnostic = string | [string, readonly ReusableDiagnostic[]];
-        type ProgramBuilderInfoFilePendingEmit = [string, "DtsOnly" | "Full"];
-        type PersistedProgramResolvedModuleFull = Omit<ts.PersistedProgramResolvedModuleFull, "resolvedFileName" | "originalPath"> & {
+        type ReadableProgramBuildInfoDiagnostic = string | [string, readonly ReusableDiagnostic[]];
+        type ReadableProgramBuilderInfoFilePendingEmit = [string, "DtsOnly" | "Full"];
+        type ReadablePersistedProgramResolvedModuleFull = Omit<PersistedProgramResolvedModuleFull, "resolvedFileName" | "originalPath"> & {
             resolvedFileName: string;
             readonly originalPath?: string;
         };
-        interface PersistedProgramResolvedModuleWithFailedLookupLocations {
-            readonly resolvedModule: PersistedProgramResolvedModuleFull | undefined;
+        interface ReadablePersistedProgramResolvedModuleWithFailedLookupLocations {
+            readonly resolvedModule: ReadablePersistedProgramResolvedModuleFull | undefined;
             failedLookupLocations?: readonly string[];
         }
-        type PersistedProgramResolvedTypeReferenceDirective = Omit<ResolvedTypeReferenceDirective, "resolvedFileName"> & {
+        type ReadablePersistedProgramResolvedTypeReferenceDirective = Omit<PersistedProgramResolvedTypeReferenceDirective, "resolvedFileName"> & {
             resolvedFileName: string | undefined;
         };
-        interface PersistedProgramResolvedTypeReferenceDirectiveWithFailedLookupLocations {
-            resolvedTypeReferenceDirective: PersistedProgramResolvedTypeReferenceDirective | undefined;
+        interface ReadablePersistedProgramResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+            resolvedTypeReferenceDirective: ReadablePersistedProgramResolvedTypeReferenceDirective | undefined;
             failedLookupLocations?: readonly string[];
         }
-        type PersistedProgramResolution = PersistedProgramResolvedModuleWithFailedLookupLocations & PersistedProgramResolvedTypeReferenceDirectiveWithFailedLookupLocations;
-        type PersistedProgramResolutionEntry = [name: string, resolution: PersistedProgramResolution];
-        interface PersistedProgramSourceFile {
+        type ReadablePersistedProgramResolution = ReadablePersistedProgramResolvedModuleWithFailedLookupLocations & ReadablePersistedProgramResolvedTypeReferenceDirectiveWithFailedLookupLocations;
+        type ReadablePersistedProgramResolutionEntry = [name: string, resolution: ReadablePersistedProgramResolution];
+        type ReadablePersistedProgramSourceFile = Omit<PersistedProgramSourceFile, "fileName" | "originalFileName" | "path" | "resolvedPath" | "resolvedModules" | "resolvedTypeReferenceDirectiveNames" | "redirectInfo" | "includeReasons" | "redirectTargets"> & {
             fileName: string;
             originalFileName: string;
             path: string;
             resolvedPath: string;
-            flags: NodeFlags;
-            version: string;
-            typeReferenceDirectives?: readonly string[];
-            libReferenceDirectives?: readonly string[];
-            referencedFiles?: readonly string[];
-            imports?: readonly StringLiteralLikeOfProgramFromBuildInfo[];
-            moduleAugmentations?: readonly ModuleNameOfProgramFromBuildInfo[];
-            ambientModuleNames?: readonly string[];
-            hasNoDefaultLib?: true;
-            resolvedModules?: readonly PersistedProgramResolutionEntry[];
-            resolvedTypeReferenceDirectiveNames?: readonly PersistedProgramResolutionEntry[];
+            resolvedModules?: readonly ReadablePersistedProgramResolutionEntry[];
+            resolvedTypeReferenceDirectiveNames?: readonly ReadablePersistedProgramResolutionEntry[];
             redirectInfo?: { readonly redirectTarget: { readonly path: string }; };
-            includeReasons: readonly PersistedProgramFileIncludeReason[];
-            isSourceFileFromExternalLibraryPath?: true;
+            includeReasons: readonly ReadablePersistedProgramFileIncludeReason[];
             redirectTargets?: readonly string[];
-            packageName?: string;
-        }
-        enum FileIncludeKind {
+        };
+        enum ReadableFileIncludeKind {
             RootFile = "RootFile",
             SourceFromProjectReference = "SourceFromProjectReference",
             OutputFromProjectReference = "OutputFromProjectReference",
@@ -289,76 +278,71 @@ interface Symbol {
             LibReferenceDirective = "LibReferenceDirective",
             AutomaticTypeDirectiveFile = "AutomaticTypeDirectiveFile",
         }
-        type ReferencedFileKind = FileIncludeKind.Import |
-            FileIncludeKind.ReferenceFile |
-            FileIncludeKind.TypeReferenceDirective |
-            FileIncludeKind.LibReferenceDirective;
-        interface PersistedProgramReferencedFile {
-            kind: ReferencedFileKind;
+        type ReadableReferencedFileKind = ReadableFileIncludeKind.Import |
+            ReadableFileIncludeKind.ReferenceFile |
+            ReadableFileIncludeKind.TypeReferenceDirective |
+            ReadableFileIncludeKind.LibReferenceDirective;
+        type ReadablePersistedProgramReferencedFile = Omit<PersistedProgramReferencedFile, "file" | "kind"> & {
+            kind: ReadableReferencedFileKind;
             file: string;
-            index: number;
-        }
-        type PersistedProgramFileIncludeReason = Omit<(
+        };
+        type ReadablePersistedProgramFileIncludeReason = Omit<(
             RootFile |
             LibFile |
             ProjectReferenceFile |
-            PersistedProgramReferencedFile |
+            ReadablePersistedProgramReferencedFile |
             AutomaticTypeDirectiveFile
-        ), "kind"> & { kind: FileIncludeKind };
-        const enum FilePreprocessingDiagnosticsKind {
+        ), "kind"> & { kind: ReadableFileIncludeKind };
+        const enum ReadableFilePreprocessingDiagnosticsKind {
             FilePreprocessingReferencedDiagnostic = "FilePreprocessingReferencedDiagnostic",
             FilePreprocessingFileExplainingDiagnostic = "FilePreprocessingFileExplainingDiagnostic"
         }
-        interface PersistedProgramFilePreprocessingReferencedDiagnostic {
-            kind: FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic;
-            reason: PersistedProgramReferencedFile;
-            diagnostic: keyof typeof Diagnostics;
-            args?: (string | number | undefined)[];
-        }
-        interface PersistedProgramFilePreprocessingFileExplainingDiagnostic {
-            kind: FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic;
+        type ReadablePersistedProgramFilePreprocessingReferencedDiagnostic = Omit<PersistedProgramFilePreprocessingReferencedDiagnostic, "kind" | "reason"> & {
+            kind: ReadableFilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic;
+            reason: ReadablePersistedProgramReferencedFile;
+        };
+        type ReadablePersistedProgramFilePreprocessingFileExplainingDiagnostic = Omit<PersistedProgramFilePreprocessingFileExplainingDiagnostic, "kind" | "file" | "fileProcessingReason"> & {
+            kind: ReadableFilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic;
             file?: string;
-            fileProcessingReason: PersistedProgramFileIncludeReason;
-            diagnostic: keyof typeof Diagnostics;
-            args?: (string | number | undefined)[];
-        }
-        type PersistedProgramFilePreprocessingDiagnostic = PersistedProgramFilePreprocessingReferencedDiagnostic | PersistedProgramFilePreprocessingFileExplainingDiagnostic;
-        interface PersistedProgramResolvedProjectReference {
+            fileProcessingReason: ReadablePersistedProgramFileIncludeReason;
+        };
+        type ReadablePersistedProgramFilePreprocessingDiagnostic = ReadablePersistedProgramFilePreprocessingReferencedDiagnostic | ReadablePersistedProgramFilePreprocessingFileExplainingDiagnostic;
+        interface ReadablePersistedProgramResolvedProjectReference {
             commandLine: Pick<ParsedCommandLine, "projectReferences"> | undefined;
             sourceFile: { version: string; path: string; };
-            references: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
+            references: readonly (ReadablePersistedProgramResolvedProjectReference | undefined)[] | undefined;
         }
-        interface PersistedProgram {
-            files: readonly PersistedProgramSourceFile[] | undefined;
+        interface ReadablePersistedProgram {
+            files: readonly ReadablePersistedProgramSourceFile[] | undefined;
             rootFileNames: readonly string[] | undefined;
             filesByName: MapLike<string | typeof missingSourceOfProjectReferenceRedirect | typeof missingFile> | undefined;
             projectReferences: readonly ProjectReference[] | undefined;
-            resolvedProjectReferences: readonly (PersistedProgramResolvedProjectReference | undefined)[] | undefined;
+            resolvedProjectReferences: readonly (ReadablePersistedProgramResolvedProjectReference | undefined)[] | undefined;
             missingPaths: readonly string[] | undefined;
-            resolvedTypeReferenceDirectives: readonly PersistedProgramResolutionEntry[] | undefined;
-            fileProcessingDiagnostics: readonly PersistedProgramFilePreprocessingDiagnostic[] | undefined;
-            resolutions: readonly PersistedProgramResolution[] | undefined;
+            resolvedTypeReferenceDirectives: readonly ReadablePersistedProgramResolutionEntry[] | undefined;
+            fileProcessingDiagnostics: readonly ReadablePersistedProgramFilePreprocessingDiagnostic[] | undefined;
+            resolutions: readonly ReadablePersistedProgramResolution[] | undefined;
         }
-        interface ProgramBuildInfo {
+        interface ReadableProgramBuildInfo {
             fileNames: readonly string[];
             fileNamesList: readonly (readonly string[])[] | undefined;
             fileInfos: MapLike<BuilderState.FileInfo>;
             options: CompilerOptions;
             referencedMap?: MapLike<string[]>;
             exportedModulesMap?: MapLike<string[]>;
-            semanticDiagnosticsPerFile?: ProgramBuildInfoDiagnostic[];
-            affectedFilesPendingEmit?: ProgramBuilderInfoFilePendingEmit[];
-            peristedProgram?: PersistedProgram;
+            semanticDiagnosticsPerFile?: ReadableProgramBuildInfoDiagnostic[];
+            affectedFilesPendingEmit?: ReadableProgramBuilderInfoFilePendingEmit[];
+            peristedProgram?: ReadablePersistedProgram;
         }
-        const fileInfos: ProgramBuildInfo["fileInfos"] = {};
+        const fileInfos: ReadableProgramBuildInfo["fileInfos"] = {};
         buildInfo.program?.fileInfos.forEach((fileInfo, index) => fileInfos[toFileName(index + 1 as ProgramBuildInfoFileId)] = fileInfo);
         const fileNamesList = buildInfo.program?.fileIdsList?.map(fileIdsListId => fileIdsListId.map(toFileName));
-        const filesByName: PersistedProgram["filesByName"] = buildInfo.program?.peristedProgram?.filesByName ? {} : undefined;
+        const filesByName: ReadablePersistedProgram["filesByName"] = buildInfo.program?.peristedProgram?.filesByName ? {} : undefined;
         buildInfo.program?.peristedProgram?.filesByName?.forEach(([fileId, file]) => {
             filesByName![toFileName(fileId)] = file ? toFileName(file) : file as typeof missingSourceOfProjectReferenceRedirect | typeof missingFile;
         });
-        const resolutions = buildInfo.program?.peristedProgram?.resolutions?.map(toPersistedProgramResolution);
-        const program: ProgramBuildInfo | undefined = buildInfo.program && {
+        const resolutions = buildInfo.program?.peristedProgram?.resolutions?.map(toReadablePersistedProgramResolution);
+        const program: ReadableProgramBuildInfo | undefined = buildInfo.program && {
             fileNames: buildInfo.program.fileNames,
             fileNamesList,
             fileInfos,
@@ -377,19 +361,19 @@ interface Symbol {
                         Debug.assertNever(emitKind)
             ]),
             peristedProgram: buildInfo.program.peristedProgram && {
-                files: buildInfo.program.peristedProgram.files?.map(toPersistedProgramSourceFile),
+                files: buildInfo.program.peristedProgram.files?.map(toReadablePersistedProgramSourceFile),
                 rootFileNames: buildInfo.program.peristedProgram.rootFileNames?.map(toFileName),
                 filesByName,
                 projectReferences: buildInfo.program.peristedProgram.projectReferences?.map(toProjectReference),
-                resolvedProjectReferences: buildInfo.program.peristedProgram.resolvedProjectReferences?.map(toResolvedProjectReference),
+                resolvedProjectReferences: buildInfo.program.peristedProgram.resolvedProjectReferences?.map(toReadableResolvedProjectReference),
                 missingPaths: buildInfo.program.peristedProgram.missingPaths?.map(toFileName),
-                resolvedTypeReferenceDirectives: buildInfo.program.peristedProgram.resolvedTypeReferenceDirectives?.map(toPersistedProgramResolutionEntry),
-                fileProcessingDiagnostics: buildInfo.program.peristedProgram.fileProcessingDiagnostics?.map(toPersistedProgramFilePreprocessingDiagnostic),
+                resolvedTypeReferenceDirectives: buildInfo.program.peristedProgram.resolvedTypeReferenceDirectives?.map(toReadablePersistedProgramResolutionEntry),
+                fileProcessingDiagnostics: buildInfo.program.peristedProgram.fileProcessingDiagnostics?.map(toReadablePersistedProgramFilePreprocessingDiagnostic),
                 resolutions
             },
         };
         const version = buildInfo.version === ts.version ? fakes.version : buildInfo.version;
-        const result: Omit<BuildInfo, "program"> & { program: ProgramBuildInfo | undefined; size: number; } = {
+        const result: Omit<BuildInfo, "program"> & { program: ReadableProgramBuildInfo | undefined; size: number; } = {
             bundle: buildInfo.bundle,
             program,
             version,
@@ -415,7 +399,7 @@ interface Symbol {
             return result;
         }
 
-        function toPersistedProgramSourceFile(file: ts.PersistedProgramSourceFile): PersistedProgramSourceFile {
+        function toReadablePersistedProgramSourceFile(file: PersistedProgramSourceFile): ReadablePersistedProgramSourceFile {
             return {
                 ...file,
                 fileName: toFileName(file.fileName),
@@ -423,62 +407,62 @@ interface Symbol {
                 path: toFileName(file.path),
                 resolvedPath: toFileName(file.resolvedPath),
                 redirectInfo: file.redirectInfo && { redirectTarget: { path: toFileName(file.redirectInfo.redirectTarget.path) } },
-                resolvedModules: file.resolvedModules?.map(toPersistedProgramResolutionEntry),
-                resolvedTypeReferenceDirectiveNames: file.resolvedTypeReferenceDirectiveNames?.map(toPersistedProgramResolutionEntry),
+                resolvedModules: file.resolvedModules?.map(toReadablePersistedProgramResolutionEntry),
+                resolvedTypeReferenceDirectiveNames: file.resolvedTypeReferenceDirectiveNames?.map(toReadablePersistedProgramResolutionEntry),
                 redirectTargets: file.redirectTargets?.map(toFileName),
-                includeReasons: file.includeReasons.map(toPersistedProgramFileIncludeReason),
+                includeReasons: file.includeReasons.map(toReadablePersistedProgramFileIncludeReason),
             };
         }
 
-        function toFileIncludeKind(kind: ts.FileIncludeKind): FileIncludeKind {
+        function toReadableFileIncludeKind(kind: FileIncludeKind): ReadableFileIncludeKind {
             switch (kind) {
-                case ts.FileIncludeKind.RootFile: return FileIncludeKind.RootFile;
-                case ts.FileIncludeKind.SourceFromProjectReference: return FileIncludeKind.SourceFromProjectReference;
-                case ts.FileIncludeKind.OutputFromProjectReference: return FileIncludeKind.OutputFromProjectReference;
-                case ts.FileIncludeKind.Import: return FileIncludeKind.Import;
-                case ts.FileIncludeKind.ReferenceFile: return FileIncludeKind.ReferenceFile;
-                case ts.FileIncludeKind.TypeReferenceDirective: return FileIncludeKind.TypeReferenceDirective;
-                case ts.FileIncludeKind.LibFile: return FileIncludeKind.LibFile;
-                case ts.FileIncludeKind.LibReferenceDirective: return FileIncludeKind.LibReferenceDirective;
-                case ts.FileIncludeKind.AutomaticTypeDirectiveFile: return FileIncludeKind.AutomaticTypeDirectiveFile;
+                case FileIncludeKind.RootFile: return ReadableFileIncludeKind.RootFile;
+                case FileIncludeKind.SourceFromProjectReference: return ReadableFileIncludeKind.SourceFromProjectReference;
+                case FileIncludeKind.OutputFromProjectReference: return ReadableFileIncludeKind.OutputFromProjectReference;
+                case FileIncludeKind.Import: return ReadableFileIncludeKind.Import;
+                case FileIncludeKind.ReferenceFile: return ReadableFileIncludeKind.ReferenceFile;
+                case FileIncludeKind.TypeReferenceDirective: return ReadableFileIncludeKind.TypeReferenceDirective;
+                case FileIncludeKind.LibFile: return ReadableFileIncludeKind.LibFile;
+                case FileIncludeKind.LibReferenceDirective: return ReadableFileIncludeKind.LibReferenceDirective;
+                case FileIncludeKind.AutomaticTypeDirectiveFile: return ReadableFileIncludeKind.AutomaticTypeDirectiveFile;
                 default:
                     Debug.assertNever(kind);
             }
         }
 
-        function toPersistedProgramReferencedFile(reason: ts.PersistedProgramReferencedFile): PersistedProgramReferencedFile {
-            return { ...reason, kind: toFileIncludeKind(reason.kind) as ReferencedFileKind, file: toFileName(reason.file) };
+        function toReadablePersistedProgramReferencedFile(reason: PersistedProgramReferencedFile): ReadablePersistedProgramReferencedFile {
+            return { ...reason, kind: toReadableFileIncludeKind(reason.kind) as ReadableReferencedFileKind, file: toFileName(reason.file) };
         }
 
-        function toPersistedProgramFileIncludeReason(reason: ts.PersistedProgramFileIncludeReason): PersistedProgramFileIncludeReason {
-            return isReferencedFile(reason) ? toPersistedProgramReferencedFile(reason) : { ...reason, kind: toFileIncludeKind(reason.kind) };
+        function toReadablePersistedProgramFileIncludeReason(reason: PersistedProgramFileIncludeReason): ReadablePersistedProgramFileIncludeReason {
+            return isReferencedFile(reason) ? toReadablePersistedProgramReferencedFile(reason) : { ...reason, kind: toReadableFileIncludeKind(reason.kind) };
         }
 
-        function toPersistedProgramFilePreprocessingDiagnostic(d: ts.PersistedProgramFilePreprocessingDiagnostic): PersistedProgramFilePreprocessingDiagnostic {
+        function toReadablePersistedProgramFilePreprocessingDiagnostic(d: PersistedProgramFilePreprocessingDiagnostic): ReadablePersistedProgramFilePreprocessingDiagnostic {
             switch (d.kind) {
-                case ts.FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic:
+                case FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic:
                     return {
                         ...d,
-                        kind: FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic,
+                        kind: ReadableFilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic,
                         file: d.file ? toFileName(d.file) : undefined,
-                        fileProcessingReason: toPersistedProgramFileIncludeReason(d.fileProcessingReason),
+                        fileProcessingReason: toReadablePersistedProgramFileIncludeReason(d.fileProcessingReason),
                     };
-                case ts.FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic:
+                case FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic:
                     return {
                         ...d,
-                        kind: FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic,
-                        reason: toPersistedProgramReferencedFile(d.reason),
+                        kind: ReadableFilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic,
+                        reason: toReadablePersistedProgramReferencedFile(d.reason),
                     };
                 default:
                     Debug.assertNever(d);
             }
         }
 
-        function toResolvedProjectReference(ref: ts.PersistedProgramResolvedProjectReference | undefined): PersistedProgramResolvedProjectReference | undefined {
+        function toReadableResolvedProjectReference(ref: PersistedProgramResolvedProjectReference | undefined): ReadablePersistedProgramResolvedProjectReference | undefined {
             return ref && {
                 commandLine: ref.commandLine?.projectReferences && { projectReferences: ref.commandLine.projectReferences.map(toProjectReference) },
                 sourceFile: { ...ref.sourceFile, path: toFileName(ref.sourceFile.path) },
-                references: ref.references?.map(toResolvedProjectReference)
+                references: ref.references?.map(toReadableResolvedProjectReference)
             };
         }
 
@@ -486,7 +470,7 @@ interface Symbol {
             return { ...ref, path: toFileName(ref.path) };
         }
 
-        function toPersistedProgramResolution(resolution: ts.PersistedProgramResolution): PersistedProgramResolution {
+        function toReadablePersistedProgramResolution(resolution: PersistedProgramResolution): ReadablePersistedProgramResolution {
             return {
                 resolvedModule: resolution.resolvedModule && {
                     ...resolution.resolvedModule,
@@ -501,7 +485,7 @@ interface Symbol {
             };
         }
 
-        function toPersistedProgramResolutionEntry([name, resolutionId]: ts.PersistedProgramResolutionEntry): PersistedProgramResolutionEntry {
+        function toReadablePersistedProgramResolutionEntry([name, resolutionId]: PersistedProgramResolutionEntry): ReadablePersistedProgramResolutionEntry {
             return [name, resolutions![resolutionId - 1]];
         }
     }
